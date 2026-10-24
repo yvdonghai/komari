@@ -6,17 +6,15 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/komari-monitor/komari/internal/plugin"
 	logger "github.com/komari-monitor/komari/utils/log"
 	"github.com/komari-monitor/komari/web/backup"
 	"github.com/komari-monitor/komari/web/upload"
 )
 
+// NewArchiveUploadHandler 仅保留备份归档上传；主题/插件上传已移除。
 func NewArchiveUploadHandler() *upload.Handler {
 	return upload.NewHandler(upload.DefaultStore, map[upload.Purpose]upload.Finalizer{
 		upload.PurposeBackup: finalizeBackupUpload,
-		upload.PurposePlugin: finalizePluginUpload,
-		upload.PurposeTheme:  finalizeThemeUpload,
 	})
 }
 
@@ -51,20 +49,4 @@ func finalizeBackupUpload(session upload.Session) (upload.Result, error) {
 		Message: "Backup uploaded successfully. The service will restart and apply the backup.",
 		Data:    map[string]string{"path": filepath.Join(".", "data", "backup.zip")},
 	}, nil
-}
-
-func finalizePluginUpload(session upload.Session) (upload.Result, error) {
-	info, err := plugin.InstallZip(session.ArchivePath)
-	if err != nil {
-		return upload.Result{}, err
-	}
-	return upload.Result{Message: "插件上传成功", Data: info}, nil
-}
-
-func finalizeThemeUpload(session upload.Session) (upload.Result, error) {
-	info, err := extractAndValidateTheme(session.ArchivePath)
-	if err != nil {
-		return upload.Result{}, err
-	}
-	return upload.Result{Message: "主题上传成功", Data: info}, nil
 }

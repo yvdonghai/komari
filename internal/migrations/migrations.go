@@ -47,6 +47,16 @@ func (legacyModelConfig) TableName() string {
 	return "configs"
 }
 
+// oidcProvider 仅用于旧版 OAuth 配置迁移；OAuth 功能已移除，表可继续存在于旧库中。
+type oidcProvider struct {
+	Name     string `json:"name" gorm:"primaryKey;unique;not null"`
+	Addition string `json:"addition" gorm:"type:longtext" default:"{}"`
+}
+
+func (oidcProvider) TableName() string {
+	return "oidc_providers"
+}
+
 type legacyConfig struct {
 	ID                         uint      `json:"id,omitempty"`
 	Sitename                   string    `json:"sitename"`
@@ -184,7 +194,7 @@ func migrateLegacyLoadNotification(db *gorm.DB) error {
 }
 
 func migrateLegacyOidcConfig(db *gorm.DB) error {
-	if db.Migrator().HasTable(&models.OidcProvider{}) {
+	if db.Migrator().HasTable(&oidcProvider{}) {
 		return nil
 	}
 
@@ -197,7 +207,7 @@ func migrateLegacyOidcConfig(db *gorm.DB) error {
 		return fmt.Errorf("get legacy OIDC config: %w", err)
 	}
 
-	if err := db.AutoMigrate(&models.OidcProvider{}); err != nil {
+	if err := db.AutoMigrate(&oidcProvider{}); err != nil {
 		return err
 	}
 	addition, err := json.Marshal(map[string]string{
@@ -207,7 +217,7 @@ func migrateLegacyOidcConfig(db *gorm.DB) error {
 	if err != nil {
 		return fmt.Errorf("marshal legacy OIDC config: %w", err)
 	}
-	if err := db.Save(&models.OidcProvider{
+	if err := db.Save(&oidcProvider{
 		Name:     "github",
 		Addition: string(addition),
 	}).Error; err != nil {

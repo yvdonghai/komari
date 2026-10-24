@@ -120,8 +120,9 @@ func isSafePath(basePath, targetPath string) bool {
 }
 
 // Static 注册静态资源和 SPA 路由处理
+// Static 始终使用内置 default 主题；自定义主题市场已移除。
 func Static(r *gin.RouterGroup, noRoute func(handlers ...gin.HandlerFunc)) {
-	static(r, noRoute, false)
+	static(r, noRoute, true)
 }
 
 // StaticRestricted serves only the embedded default frontend. Restricted

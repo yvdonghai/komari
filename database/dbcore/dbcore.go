@@ -450,14 +450,10 @@ func doInitialize() error {
 		&models.User{},
 		&models.Client{},
 		&models.Log{},
-		&models.Clipboard{},
 		&models.LoadNotification{},
 		&models.OfflineNotification{},
 		&models.PingTask{},
-		&models.OidcProvider{},
 		&models.MessageSenderProvider{},
-		&models.ThemeConfiguration{},
-		&models.PluginConfiguration{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)
@@ -466,12 +462,6 @@ func doInitialize() error {
 		&models.Session{},
 	); err != nil {
 		logger.Errorf("dbcore", "Failed to create Session table, it may already exist: %v", err)
-	}
-	if err := instance.AutoMigrate(
-		&models.Task{},
-		&models.TaskResult{},
-	); err != nil {
-		logger.Errorf("dbcore", "Failed to create Task and TaskResult table, it may already exist: %v", err)
 	}
 
 	return nil

@@ -1,0 +1,20 @@
+# 自托管面板（本 fork：yvdonghai/komari）
+# 镜像由 GitHub Actions 推送到 ghcr.io/yvdonghai/komari
+#
+# 用法:
+#   docker compose up -d
+# 首次访问 http://服务器IP:25774 完成安装向导
+
+services:
+  komari:
+    image: ghcr.io/yvdonghai/komari:main
+    container_name: komari
+    restart: unless-stopped
+    ports:
+      - "25774:25774"
+    environment:
+      GIN_MODE: release
+      KOMARI_LISTEN: 0.0.0.0:25774
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data:/app/data

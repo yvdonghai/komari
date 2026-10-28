@@ -28,13 +28,26 @@ curl -fsSL https://raw.githubusercontent.com/yvdonghai/komari/main/install-komar
 docker build -f Dockerfile.source -t ghcr.io/yvdonghai/komari:local .
 ```
 
-## Agent 安装
+## Agent 安装（自己的镜像）
 
-面板添加节点后拿到 Token，在被监控机器执行：
+镜像：`ghcr.io/yvdonghai/komari-agent:latest`（Actions 工作流 `Publish Agent Docker Image` 构建）。
+
+面板添加节点拿到 Token 后：
 
 ```bash
+# Docker（默认，推荐）
 curl -fsSL https://raw.githubusercontent.com/yvdonghai/komari/main/install-agent.sh | \
   sh -s -- -e https://你的面板地址:25774 -t <节点Token>
+
+# 或 compose
+export AGENT_ENDPOINT=https://你的面板:25774
+export AGENT_TOKEN=<节点Token>
+curl -fsSL https://raw.githubusercontent.com/yvdonghai/komari/main/docker-compose.agent.yml -o docker-compose.agent.yml
+docker compose -f docker-compose.agent.yml up -d
+
+# 宿主机二进制（可选）
+curl -fsSL https://raw.githubusercontent.com/yvdonghai/komari/main/install-agent.sh | \
+  sh -s -- --binary -e https://你的面板:25774 -t <节点Token>
 ```
 
-Agent 二进制来自上游 `komari-monitor/komari-agent`（协议兼容）；脚本默认加上 `--disable-web-ssh`。
+首次使用请先在仓库 Actions 里手动跑一次 **Publish Agent Docker Image**，或合并含 `agent/` 的改动到 `main`。

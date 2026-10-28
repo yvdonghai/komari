@@ -1,0 +1,25 @@
+# 在被监控机器上用 Docker 部署「自己的」agent 镜像
+# 镜像：ghcr.io/yvdonghai/komari-agent
+#
+# 用法:
+#   export AGENT_ENDPOINT=https://你的面板:25774
+#   export AGENT_TOKEN=节点Token
+#   docker compose -f docker-compose.agent.yml up -d
+
+services:
+  komari-agent:
+    image: ghcr.io/yvdonghai/komari-agent:latest
+    container_name: komari-agent
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      AGENT_ENDPOINT: ${AGENT_ENDPOINT:?set AGENT_ENDPOINT}
+      AGENT_TOKEN: ${AGENT_TOKEN:?set AGENT_TOKEN}
+      AGENT_DISABLE_WEB_SSH: "true"
+      AGENT_DISABLE_AUTO_UPDATE: "true"
+    # 如需更贴近宿主机指标，可按需打开以下挂载：
+    # volumes:
+    #   - /proc:/host/proc:ro
+    #   - /sys:/host/sys:ro
+    # environment:
+    #   HOST_PROC: /host/proc

@@ -1,27 +1,26 @@
 #!/bin/sh
-# 为本 fork 面板 (yvdonghai/komari) 安装兼容的官方 komari-agent。
-# Agent 协议与上游一致，二进制默认取自 komari-monitor/komari-agent releases。
+# 为本 fork 面板 (yvdonghai/komari) 安装「自己的」agent。
+#
+# 默认：Docker 部署自己的镜像 ghcr.io/yvdonghai/komari-agent
+# 可选：--binary 走宿主机二进制（仍下载上游 agent release）
 #
 # 用法:
+#   # Docker（推荐）
 #   curl -fsSL https://raw.githubusercontent.com/yvdonghai/komari/main/install-agent.sh | \
-#     sh -s -- -e https://面板地址:25774 -t <节点Token>
+#     sh -s -- -e https://面板:25774 -t <Token>
 #
-# 常用参数（会原样传给 agent）:
-#   -e, --endpoint   面板地址（必填）
-#   -t, --token      节点 Token（必填，或与自动发现密钥二选一）
-#   --auto-discovery KEY  自动发现密钥（可选）
-#
-# 安装脚本自身参数:
-#   --install-ghproxy URL   GitHub 代理前缀
-#   --install-version TAG   指定 agent 版本（默认 latest）
-#   --install-dir DIR       安装目录
-#   --install-no-mirror     不走公共镜像加速
+#   # 宿主机二进制
+#   curl -fsSL https://raw.githubusercontent.com/yvdonghai/komari/main/install-agent.sh | \
+#     sh -s -- --binary -e https://面板:25774 -t <Token>
 
 set -eu
 
 ENDPOINT=""
 TOKEN=""
 AUTO_KEY=""
+MODE="docker"
+IMAGE="${AGENT_IMAGE:-ghcr.io/yvdonghai/komari-agent:latest}"
+NAME="${AGENT_CONTAINER_NAME:-komari-agent}"
 PASSTHROUGH=""
 
 while [ $# -gt 0 ]; do
@@ -39,6 +38,22 @@ while [ $# -gt 0 ]; do
     --auto-discovery)
       AUTO_KEY="$2"
       PASSTHROUGH="$PASSTHROUGH --auto-discovery $2"
+      shift 2
+      ;;
+    --docker)
+      MODE="docker"
+      shift
+      ;;
+    --binary)
+      MODE="binary"
+      shift
+      ;;
+    --image)
+      IMAGE="$2"
+      shift 2
+      ;;
+    --name)
+      NAME="$2"
       shift 2
       ;;
     --install-dir|--install-service-name|--install-ghproxy|--install-version)
@@ -67,15 +82,54 @@ if [ -z "$TOKEN" ] && [ -z "$AUTO_KEY" ]; then
   exit 1
 fi
 
-# 默认关闭 agent 侧网页终端/远程执行（本 fork 面板已移除对应能力）
 case " $PASSTHROUGH " in
   *" --disable-web-ssh "*) ;;
   *) PASSTHROUGH="$PASSTHROUGH --disable-web-ssh" ;;
 esac
 
-AGENT_INSTALL_URL="${AGENT_INSTALL_URL:-https://raw.githubusercontent.com/komari-monitor/komari-agent/main/install.sh}"
+install_docker() {
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "[ERROR] 未找到 docker，请先安装 Docker，或改用 --binary" >&2
+    exit 1
+  fi
 
-echo "[INFO] 面板: $ENDPOINT"
-echo "[INFO] 拉取官方 agent 安装脚本: $AGENT_INSTALL_URL"
-# shellcheck disable=SC2086
-curl -fsSL "$AGENT_INSTALL_URL" | sh -s -- $PASSTHROUGH
+  echo "[INFO] 使用自己的 agent 镜像: $IMAGE"
+  echo "[INFO] 面板: $ENDPOINT"
+
+  if docker ps -a --format '{{.Names}}' | grep -qx "$NAME"; then
+    echo "[INFO] 已存在容器 $NAME，先移除..."
+    docker rm -f "$NAME" >/dev/null
+  fi
+
+  # shellcheck disable=SC2086
+  docker run -d \
+    --name "$NAME" \
+    --restart unless-stopped \
+    --network host \
+    -e AGENT_ENDPOINT="$ENDPOINT" \
+    ${TOKEN:+-e AGENT_TOKEN="$TOKEN"} \
+    ${AUTO_KEY:+-e AGENT_AUTO_DISCOVERY_KEY="$AUTO_KEY"} \
+    -e AGENT_DISABLE_WEB_SSH=true \
+    -e AGENT_DISABLE_AUTO_UPDATE=true \
+    "$IMAGE"
+
+  echo "[OK] agent 容器已启动: $NAME"
+  docker ps --filter "name=^/${NAME}$"
+}
+
+install_binary() {
+  AGENT_INSTALL_URL="${AGENT_INSTALL_URL:-https://raw.githubusercontent.com/komari-monitor/komari-agent/main/install.sh}"
+  echo "[INFO] 面板: $ENDPOINT"
+  echo "[INFO] 拉取 agent 安装脚本: $AGENT_INSTALL_URL"
+  # shellcheck disable=SC2086
+  curl -fsSL "$AGENT_INSTALL_URL" | sh -s -- $PASSTHROUGH
+}
+
+case "$MODE" in
+  docker) install_docker ;;
+  binary) install_binary ;;
+  *)
+    echo "[ERROR] 未知模式: $MODE" >&2
+    exit 1
+    ;;
+esac
